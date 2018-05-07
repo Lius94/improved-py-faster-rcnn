@@ -23,10 +23,13 @@ import numpy as np
 import scipy.io as sio
 import caffe, os, sys, cv2
 import argparse
-import math
 
 CLASSES = ('__background__',
-           'person')
+           'aeroplane', 'bicycle', 'bird', 'boat',
+           'bottle', 'bus', 'car', 'cat', 'chair',
+           'cow', 'diningtable', 'dog', 'horse',
+           'motorbike', 'person', 'pottedplant',
+           'sheep', 'sofa', 'train', 'tvmonitor')
 
 NETS = {'vgg16': ('VGG16',
                   'VGG16_faster_rcnn_final.caffemodel'),
@@ -64,33 +67,8 @@ def vis_detections(im, class_name, dets, thresh=0.5):
                   fontsize=14)
     plt.axis('off')
     plt.tight_layout()
-    #plt.draw()
-def save_feature_picture(data, name, image_name=None, padsize = 1, padval = 1):
-    data = data[0]
-    #print "data.shape1: ", data.shape
-    n = int(np.ceil(np.sqrt(data.shape[0])))
-    padding = ((0, n ** 2 - data.shape[0]), (0, 0), (0, padsize)) + ((0, 0),) * (data.ndim - 3)
-    #print "padding: ", padding
-    data = np.pad(data, padding, mode='constant', constant_values=(padval, padval))
-    #print "data.shape2: ", data.shape
-    
-    data = data.reshape((n, n) + data.shape[1:]).transpose((0, 2, 1, 3) + tuple(range(4, data.ndim + 1)))
-    #print "data.shape3: ", data.shape, n
-    data = data.reshape((n * data.shape[1], n * data.shape[3]) + data.shape[4:])
-    #print "data.shape4: ", data.shape
-    plt.figure()
-    plt.imshow(data,cmap='gray')
-    plt.axis('off')
-    #plt.show()
-    if image_name == None:
-        img_path = './data/feature_picture/' 
-    else:
-        img_path = './data/feature_picture/' + image_name + "/"
-        check_file(img_path)
-    plt.savefig(img_path + name + ".jpg", dpi = 400, bbox_inches = "tight")
-def check_file(path):
-    if not os.path.exists(path):
-        os.mkdir(path)
+    plt.draw()
+
 def demo(net, image_name):
     """Detect object classes in an image using pre-computed object proposals."""
 
@@ -102,9 +80,6 @@ def demo(net, image_name):
     timer = Timer()
     timer.tic()
     scores, boxes = im_detect(net, im)
-    for k, v in net.blobs.items():
-        if k.find("conv")>-1 or k.find("pool")>-1 or k.find("rpn")>-1:
-            save_feature_picture(v.data, k.replace("/", ""), image_name)#net.blobs["conv1_1"].data, "conv1_1") 
     timer.toc()
     print ('Detection took {:.3f}s for '
            '{:d} object proposals').format(timer.total_time, boxes.shape[0])
@@ -137,13 +112,6 @@ def parse_args():
 
     return args
 
-def print_param(net):
-    for k, v in net.blobs.items():
-	print (k, v.data.shape)
-    print ""
-    for k, v in net.params.items():
-	print (k, v[0].data.shape)  
-
 if __name__ == '__main__':
     cfg.TEST.HAS_RPN = True  # Use RPN for proposals
 
@@ -151,7 +119,6 @@ if __name__ == '__main__':
 
     prototxt = os.path.join(cfg.MODELS_DIR, NETS[args.demo_net][0],
                             'faster_rcnn_alt_opt', 'faster_rcnn_test.pt')
-    #print "prototxt: ", prototxt
     caffemodel = os.path.join(cfg.DATA_DIR, 'faster_rcnn_models',
                               NETS[args.demo_net][1])
 
@@ -165,21 +132,20 @@ if __name__ == '__main__':
         caffe.set_mode_gpu()
         caffe.set_device(args.gpu_id)
         cfg.GPU_ID = args.gpu_id
-    net = caffe.Net('/home/liu/faster-rcnn/models/pascal_voc/ZF/faster_rcnn_end2end/test.prototxt', caffemodel, caffe.TEST)
-    
-    #print_param(net)
+    net = caffe.Net(prototxt, caffemodel, caffe.TEST)
 
     print '\n\nLoaded network {:s}'.format(caffemodel)
 
     # Warmup on a dummy image
-    im = 128 * np.ones((600, 1000, 3), dtype=np.uint8)
+    im = 128 * np.ones((300, 500, 3), dtype=np.uint8)
     for i in xrange(2):
         _, _= im_detect(net, im)
 
-    im_names = ['1.jpg']
+    im_names = ['000456.jpg', '000542.jpg', '001150.jpg',
+                '001763.jpg', '004545.jpg']
     for im_name in im_names:
         print '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
         print 'Demo for data/demo/{}'.format(im_name)
         demo(net, im_name)
 
-    #plt.show()
+    plt.show()
